@@ -6,7 +6,7 @@ INSERT INTO users (student_id, password, name, gender, email, phone, role) VALUE
 
 -- 插入初始学生账户
 INSERT INTO users (student_id, password, name, gender, email, phone, role) VALUES
-                                                                               ('123090910', 'iAmAuthor', 'Zhou Yifan', 'MALE', 'yifanzhou2@link.cuhk.edu.cn', '13700000000', 'STUDENT'),
+                                                                               ('***', 'iAmAuthor', '***', 'MALE', '***@link.cuhk.edu.cn', '13700000000', 'STUDENT'),
                                                                                ('123456789', 'student123', '张三', 'MALE', 'zhangsan@link.cuhk.edu.cn', '13800138001', 'STUDENT'),
                                                                                ('123456790', 'student123', '李四', 'FEMALE', 'lisi@link.cuhk.edu.cn', '13800138002', 'STUDENT'),
                                                                                ('123456791', 'student123', '王五', 'FEMALE', 'wangwu@link.cuhk.edu.cn', '13800138003', 'STUDENT'),
@@ -25,7 +25,7 @@ INSERT INTO users (student_id, password, name, gender, email, phone, role) VALUE
 
    学生：
    MALE:
-    "我（作者）": 123090910, 1234
+    "我（作者）": ***, 1234
     "Zhang San": 123456789, 1234
     "Li Si": 123456790, 1234
     "Wang Wu": 123456791, 1234
@@ -77,7 +77,7 @@ INSERT INTO rooms (building_id, room_number, current_occupants) VALUES
 
 -- 插入宿舍分配数据
 INSERT INTO dorm_assignments (student_id, room_id, assignment_date) VALUES
-                                                                        ('123090910', 1, '2023-09-01'),
+                                                                        ('***', 1, '2023-09-01'),
                                                                         ('123456789', 1, '2024-01-01'),
                                                                         ('123456790', 6, '2024-01-01'),
                                                                         ('123456791', 6, '2024-01-01'),
@@ -100,14 +100,14 @@ INSERT INTO fee_records (student_id, academic_year, semester, accommodation_fee,
                                                                                                                                     ('210001002', '2023-2024', 'SPRING', 1500.00, 80.00, 1580.00, '2024-02-01', FALSE,  NULL),
                                                                                                                                     ('210001003', '2023-2024', 'SPRING', 1500.00, 80.00, 1580.00, '2024-02-01', FALSE,  NULL);
 INSERT INTO fee_records (student_id, academic_year, semester, accommodation_fee, electricity_fee, total_amount, due_date, paid, paid_date) VALUES
-                                                                                                                                    ('123090910', '2023-2024', 'FALL', 1500.00, 80.00, 1580.00, '2024-02-01', FALSE,  NULL);
+                                                                                                                                    ('***', '2023-2024', 'FALL', 1500.00, 80.00, 1580.00, '2024-02-01', FALSE,  NULL);
 
 -- 插入维修申请示例
 INSERT INTO maintenance_requests (student_id, room_id, issue_type, description, status, maintenance_notes, estimated_completion) VALUES
-                                                                                            ('123090910', 1, 'PLUMBING', '卫生间水龙头漏水 Leaky faucet', 'COMPLETED', 'The faucet was replaced.', '2023-10-15');
+                                                                                            ('***', 1, 'PLUMBING', '卫生间水龙头漏水 Leaky faucet', 'COMPLETED', 'The faucet was replaced.', '2023-10-15');
 
 -- 插入调整申请示例
 INSERT INTO adjustment_requests (student_id, reason, preferred_building_name, status) VALUES
-    ('123090910', '希望更换到安静的房间', '逸夫书院D栋', 'PENDING');
+    ('***', '希望更换到安静的房间', '逸夫书院D栋', 'PENDING');
 
 
