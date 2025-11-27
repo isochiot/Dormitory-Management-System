@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Service - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</div>
+        <ul class="nav-links">
+            <li><a href="student_dashboard.html">首页 Home</a></li>
+            <li><a href="student_dorm_info.html">宿舍信息 Dorm Info</a></li>
+            <li><a href="student_adjustment.html">调整申请 Adjustment</a></li>
+            <li><a href="student_fees.html">费用查询 Fees</a></li>
+            <li><a href="student_maintenance.html" class="active">维修服务 Maintenance</a></li>
+            <li><a href="student_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>宿舍维修服务<br>Dormitory Maintenance Service</h2>
+
+        <div class="card">
+            <h3>提交维修请求<br>Submit Maintenance Request</h3>
+            <form id="maintenanceForm">
+                <div class="form-group">
+                    <label for="issueType">问题类型<br>Issue Type</label>
+                    <select id="issueType" name="issueType" required>
+                        <option value="">请选择问题类型<br>Please select issue type</option>
+                        <option value="PLUMBING">水管/卫浴问题 Plumbing/Bathroom</option>
+                        <option value="ELECTRICAL">电路/电器问题 Electrical/Appliance</option>
+                        <option value="FURNITURE">家具问题 Furniture</option>
+                        <option value="OTHER">其他问题 Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">问题描述<br>Description</label>
+                    <textarea id="description" name="description" placeholder="请详细描述您遇到的问题... Please describe the problem in detail..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn">提交维修请求<br>Submit Maintenance Request</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>我的维修请求<br>My Maintenance Requests</h3>
+            <div id="maintenanceRequests" class="loading">加载中...<br>Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await utils.checkLogin();
+        if (!user) {
+            utils.redirectTo('student_login.html');
+            return;
+        }
+
+        await loadMaintenanceRequests();
+
+        // 表单提交
+        document.getElementById('maintenanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitMaintenanceRequest();
+        });
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await studentAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function submitMaintenanceRequest() {
+        const issueType = document.getElementById('issueType').value;
+        const description = document.getElementById('description').value;
+
+        if (!issueType || !description) {
+            utils.showMessage('请填写完整信息', 'error');
+            return;
+        }
+
+        try {
+            const result = await studentAPI.submitMaintenance({
+                issue_type: issueType,
+                description: description
+            });
+
+            if (result.code === 1) {
+                utils.showMessage('维修请求提交成功！');
+                document.getElementById('maintenanceForm').reset();
+                await loadMaintenanceRequests(); // 刷新请求列表
+            } else {
+                utils.showMessage(result.message, 'error');
+            }
+        } catch (error) {
+            utils.showMessage(error.message || '提交失败', 'error');
+        }
+    }
+
+    async function loadMaintenanceRequests() {
+        try {
+            const result = await studentAPI.getMaintenance();
+
+            if (result.code === 1 && result.data) {
+                const requests = result.data;
+
+                if (requests.length === 0) {
+                    document.getElementById('maintenanceRequests').innerHTML = '<p>暂无维修请求</p>';
+                    return;
+                }
+
+                let html = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>提交时间</th>
+                                    <th>问题类型</th>
+                                    <th>问题描述</th>
+                                    <th>状态</th>
+                                    <th>维修备注</th>
+                                    <th>预计完成</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                requests.forEach(request => {
+                    const issueTypeText = {
+                        'PLUMBING': '水管/卫浴',
+                        'ELECTRICAL': '电路/电器',
+                        'FURNITURE': '家具',
+                        'OTHER': '其他'
+                    }[request.issue_type] || request.issue_type;
+
+                    const statusText = {
+                        'SUBMITTED': '已提交',
+                        'IN_PROGRESS': '处理中',
+                        'COMPLETED': '已完成'
+                    }[request.status] || request.status;
+
+                    html += `
+                            <tr>
+                                <td>${utils.formatDate(request.created_at)}</td>
+                                <td>${issueTypeText}</td>
+                                <td>${request.description}</td>
+                                <td>
+                                    <span class="status-${request.status.toLowerCase()}">
+                                        ${statusText}
+                                    </span>
+                                </td>
+                                <td>${request.maintenance_notes || '-'}</td>
+                                <td>${request.estimated_completion || '-'}</td>
+                            </tr>
+                        `;
+                });
+
+                html += `</tbody></table>`;
+                document.getElementById('maintenanceRequests').innerHTML = html;
+            } else {
+                document.getElementById('maintenanceRequests').innerHTML = '<p>暂无维修请求</p>';
+            }
+        } catch (error) {
+            document.getElementById('maintenanceRequests').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+</script>
+
+<style>
+    .status-submitted { color: #ff9800; font-weight: bold; }
+    .status-in_progress { color: #2196f3; font-weight: bold; }
+    .status-completed { color: #4caf50; font-weight: bold; }
+</style>
+</body>
+</html>

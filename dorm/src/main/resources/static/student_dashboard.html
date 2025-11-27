@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</div>
+        <ul class="nav-links">
+            <li><a href="student_dashboard.html" class="active">首页 Home</a></li>
+            <li><a href="student_dorm_info.html">宿舍信息 Dorm Info</a></li>
+            <li><a href="student_adjustment.html">调整申请 Adjustment</a></li>
+            <li><a href="student_fees.html">费用查询 Fees</a></li>
+            <li><a href="student_maintenance.html">维修服务 Maintenance</a></li>
+            <li><a href="student_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>欢迎回来，<span id="userName">同学</span>！<br>Welcome back, <span id="userName">Student</span>!</h2>
+
+        <div class="dashboard-cards">
+            <div class="card" onclick="utils.redirectTo('student_dorm_info.html')" style="cursor: pointer;">
+                <h3>宿舍信息<br>Dorm Info</h3>
+                <p>查看您的宿舍分配情况和室友信息<br>View your dormitory assignment and roommate information</p>
+            </div>
+
+            <div class="card" onclick="utils.redirectTo('student_adjustment.html')" style="cursor: pointer;">
+                <h3>宿舍调整<br>Dorm Adjustment</h3>
+                <p>申请更换宿舍或查看申请状态<br>Apply for dorm change or check application status</p>
+            </div>
+
+            <div class="card" onclick="utils.redirectTo('student_fees.html')" style="cursor: pointer;">
+                <h3>费用查询<br>Fee Inquiry</h3>
+                <p>查看宿舍费用和缴费状态<br>Check dorm fees and payment status</p>
+            </div>
+
+            <div class="card" onclick="utils.redirectTo('student_maintenance.html')" style="cursor: pointer;">
+                <h3>维修服务<br>Maintenance Service</h3>
+                <p>提交维修请求或查看维修进度<br>Submit maintenance request or check progress</p>
+            </div>
+
+            <div class="card" onclick="utils.redirectTo('student_profile.html')" style="cursor: pointer;">
+                <h3>个人信息<br>Personal Info</h3>
+                <p>管理和更新您的个人信息<br>Manage and update your personal information</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    // 页面加载时检查登录状态
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await utils.checkLogin();
+        if (!user) {
+            utils.redirectTo('student_login.html');
+            return;
+        }
+
+        document.getElementById('userName').textContent = user.name;
+    });
+
+    // 退出登录
+    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+        e.preventDefault();
+
+        try {
+            await studentAPI.logout();
+            utils.showMessage('退出登录成功！');
+            setTimeout(() => {
+                utils.redirectTo('index.html');
+            }, 1000);
+        } catch (error) {
+            utils.showMessage('退出登录失败', 'error');
+        }
+    });
+</script>
+</body>
+</html>

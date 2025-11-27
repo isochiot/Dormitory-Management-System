@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统 - 管理后台<br>CUHKSZ Dormitory Management System - Admin Panel</div>
+        <ul class="nav-links">
+            <li><a href="admin_dashboard.html" class="active">首页 Home</a></li>
+            <li><a href="admin_adjustment.html">申请处理 Applications</a></li>
+            <li><a href="admin_dorm_status.html">宿舍状态 Dorm Status</a></li>
+            <li><a href="admin_fee_status.html">缴费状态 Fee Status</a></li>
+            <li><a href="admin_maintenance.html">维修管理 Maintenance</a></li>
+            <li><a href="admin_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>管理员仪表板<br>Admin Dashboard</h2>
+        <p>欢迎回来，<span id="adminName">管理员</span>！<br>Welcome back, <span id="adminName">Administrator</span>!</p>
+
+        <div class="dashboard-cards">
+            <div class="card" onclick="utils.redirectTo('admin_adjustment.html')" style="cursor: pointer;">
+                <h3>申请处理<br>Application Processing</h3>
+                <p>处理学生的宿舍调整申请<br>Process students' dorm adjustment applications</p>
+                <div class="stats" id="pendingRequests">加载中...<br>Loading...</div>
+            </div>
+
+            <div class="card" onclick="utils.redirectTo('admin_dorm_status.html')" style="cursor: pointer;">
+                <h3>宿舍状态<br>Dorm Status</h3>
+                <p>查看所有宿舍的入住情况<br>View occupancy status of all dormitories</p>
+            </div>
+
+            <div class="card" onclick="utils.redirectTo('admin_fee_status.html')" style="cursor: pointer;">
+                <h3>缴费状态<br>Fee Status</h3>
+                <p>管理学生的住宿费用<br>Manage students' accommodation fees</p>
+            </div>
+
+            <div class="card" onclick="utils.redirectTo('admin_maintenance.html')" style="cursor: pointer;">
+                <h3>维修管理<br>Maintenance Management</h3>
+                <p>处理学生的维修请求<br>Handle students' maintenance requests</p>
+                <div class="stats" id="maintenanceStats">加载中...<br>Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAdminLogin();
+        await loadDashboardStats();
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await adminAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function checkAdminLogin() {
+        try {
+            const result = await adminAPI.getCurrentUser();
+            if (result.code === 1 && result.data) {
+                document.getElementById('adminName').textContent = result.data.name;
+            } else {
+                utils.redirectTo('admin_login.html');
+            }
+        } catch (error) {
+            utils.redirectTo('admin_login.html');
+        }
+    }
+
+    async function loadDashboardStats() {
+        try {
+            // 加载待处理申请数量
+            const adjustmentResult = await adminAPI.getAdjustmentRequests();
+            if (adjustmentResult.code === 1 && adjustmentResult.data) {
+                const pendingCount = adjustmentResult.data.filter(req => req.status === 'PENDING').length;
+                document.getElementById('pendingRequests').innerHTML = `<strong>${pendingCount}</strong> 个待处理申请`;
+            }
+
+            // 加载维修请求统计
+            const maintenanceResult = await adminAPI.getMaintenanceRequests();
+            if (maintenanceResult.code === 1 && maintenanceResult.data) {
+                const submittedCount = maintenanceResult.data.filter(req => req.status === 'SUBMITTED').length;
+                const inProgressCount = maintenanceResult.data.filter(req => req.status === 'IN_PROGRESS').length;
+                document.getElementById('maintenanceStats').innerHTML =
+                    `<strong>${submittedCount}</strong> 个新请求<br><strong>${inProgressCount}</strong> 个处理中`;
+            }
+        } catch (error) {
+            console.error('加载统计数据失败:', error);
+            document.getElementById('pendingRequests').textContent = '加载失败';
+            document.getElementById('maintenanceStats').textContent = '加载失败';
+        }
+    }
+</script>
+
+<style>
+    .stats {
+        margin-top: 10px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        text-align: center;
+        font-size: 1.1rem;
+    }
+</style>
+</body>
+</html>

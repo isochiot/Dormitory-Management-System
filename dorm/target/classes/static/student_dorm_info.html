@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorm Info - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</div>
+        <ul class="nav-links">
+            <li><a href="student_dashboard.html">首页 Home</a></li>
+            <li><a href="student_dorm_info.html" class="active">宿舍信息 Dorm Info</a></li>
+            <li><a href="student_adjustment.html">调整申请 Adjustment</a></li>
+            <li><a href="student_fees.html">费用查询 Fees</a></li>
+            <li><a href="student_maintenance.html">维修服务 Maintenance</a></li>
+            <li><a href="student_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>我的宿舍信息<br>My Dormitory Information</h2>
+        <div id="dormInfo" class="loading">加载中...<br>Loading...</div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await utils.checkLogin();
+        if (!user) {
+            utils.redirectTo('student_login.html');
+            return;
+        }
+
+        await loadDormInfo();
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await studentAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function loadDormInfo() {
+        try {
+            const result = await studentAPI.getDormInfo();
+
+            if (result.code === 1 && result.data) {
+                const dormInfo = result.data;
+                let html = `
+                        <div class="card">
+                            <h3>宿舍基本信息</h3>
+                            <p><strong>楼栋：</strong>${dormInfo.building_name}</p>
+                            <p><strong>房间号：</strong>${dormInfo.room_number}</p>
+                        </div>
+                    `;
+
+                if (dormInfo.roommates && dormInfo.roommates.length > 0) {
+                    html += `
+                            <div class="card">
+                                <h3>室友信息</h3>
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>姓名</th>
+                                            <th>学号</th>
+                                            <th>性别</th>
+                                            <th>邮箱</th>
+                                            <th>电话</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+
+                    dormInfo.roommates.forEach(roommate => {
+                        html += `
+                                <tr>
+                                    <td>${roommate.name}</td>
+                                    <td>${roommate.student_id}</td>
+                                    <td>${roommate.gender === 'MALE' ? '男' : '女'}</td>
+                                    <td>${roommate.email}</td>
+                                    <td>${roommate.phone}</td>
+                                </tr>
+                            `;
+                    });
+
+                    html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                } else {
+                    html += `<div class="card"><p>暂无室友信息</p></div>`;
+                }
+
+                document.getElementById('dormInfo').innerHTML = html;
+            } else {
+                document.getElementById('dormInfo').innerHTML = '<div class="message error">获取宿舍信息失败</div>';
+            }
+        } catch (error) {
+            document.getElementById('dormInfo').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Status - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统 - 管理后台<br>CUHKSZ Dormitory Management System - Admin Panel</div>
+        <ul class="nav-links">
+            <li><a href="admin_dashboard.html">首页 Home</a></li>
+            <li><a href="admin_adjustment.html">申请处理 Applications</a></li>
+            <li><a href="admin_dorm_status.html">宿舍状态 Dorm Status</a></li>
+            <li><a href="admin_fee_status.html" class="active">缴费状态 Fee Status</a></li>
+            <li><a href="admin_maintenance.html">维修管理 Maintenance</a></li>
+            <li><a href="admin_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>学生缴费状态<br>Student Payment Status</h2>
+
+        <div class="card">
+            <h3>缴费状态统计<br>Payment Status Statistics</h3>
+            <div id="feeStats" class="loading">加载中...<br>Loading...</div>
+        </div>
+
+        <div class="card">
+            <h3>缴费详情列表<br>Payment Details List</h3>
+            <div id="feeStatus" class="loading">加载中...<br>Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAdminLogin();
+        await loadFeeStatus();
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await adminAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function checkAdminLogin() {
+        try {
+            const result = await adminAPI.getCurrentUser();
+            if (result.code !== 1) {
+                utils.redirectTo('admin_login.html');
+            }
+        } catch (error) {
+            utils.redirectTo('admin_login.html');
+        }
+    }
+
+    async function loadFeeStatus() {
+        try {
+            const result = await adminAPI.getFeeStatus();
+
+            if (result.code === 1 && result.data) {
+                const feeStatus = result.data;
+
+                // 计算统计信息
+                const totalCount = feeStatus.length;
+                const paidCount = feeStatus.filter(fee => fee.paid).length;
+                const unpaidCount = totalCount - paidCount;
+                const paidRate = totalCount > 0 ? ((paidCount / totalCount) * 100).toFixed(1) : 0;
+
+                // 显示统计信息
+                document.getElementById('feeStats').innerHTML = `
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="stat-number">${totalCount}</div>
+                                <div class="stat-label">总人数</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" style="color: #4caf50">${paidCount}</div>
+                                <div class="stat-label">已缴费</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" style="color: #f44336">${unpaidCount}</div>
+                                <div class="stat-label">未缴费</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number">${paidRate}%</div>
+                                <div class="stat-label">缴费率</div>
+                            </div>
+                        </div>
+                    `;
+
+                if (feeStatus.length === 0) {
+                    document.getElementById('feeStatus').innerHTML = '<p>暂无缴费数据</p>';
+                    return;
+                }
+
+                let html = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>学生学号</th>
+                                    <th>宿舍信息</th>
+                                    <th>学年学期</th>
+                                    <th>总金额</th>
+                                    <th>缴费状态</th>
+                                    <th>截止日期</th>
+                                    <th>缴费日期</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                feeStatus.forEach(fee => {
+                    const paidStatus = fee.paid ? '已缴费' : '未缴费';
+                    const paidClass = fee.paid ? 'status-paid' : 'status-unpaid';
+                    const semesterText = {
+                        'SPRING': '春季',
+                        'SUMMER': '夏季',
+                        'FALL': '秋季'
+                    }[fee.semester] || fee.semester;
+
+                    html += `
+                            <tr>
+                                <td>
+                                    <strong>${fee.student_id}</strong><br>
+                                </td>
+                                <td>
+                                    ${fee.building_name}<br>
+                                    房间 ${fee.room_number}
+                                </td>
+                                <td>${fee.academic_year} ${semesterText}</td>
+                                <td>¥${parseFloat(fee.total_amount || 0).toFixed(2)}</td>
+                                <td><span class="${paidClass}">${paidStatus}</span></td>
+                                <td>${fee.due_date}</td>
+                                <td>${fee.paid_date || '-'}</td>
+                            </tr>
+                        `;
+                });
+
+                html += `</tbody></table>`;
+                document.getElementById('feeStatus').innerHTML = html;
+            } else {
+                document.getElementById('feeStats').innerHTML = '<p>暂无统计信息</p>';
+                document.getElementById('feeStatus').innerHTML = '<p>暂无缴费数据</p>';
+            }
+        } catch (error) {
+            document.getElementById('feeStats').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+            document.getElementById('feeStatus').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+</script>
+
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+    }
+
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+    }
+
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #2a5298;
+    }
+
+    .stat-label {
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .status-paid { color: #4caf50; font-weight: bold; }
+    .status-unpaid { color: #f44336; font-weight: bold; }
+
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorm Status - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统 - 管理后台<br>CUHKSZ Dormitory Management System - Admin Panel</div>
+        <ul class="nav-links">
+            <li><a href="admin_dashboard.html">首页 Home</a></li>
+            <li><a href="admin_adjustment.html">申请处理 Applications</a></li>
+            <li><a href="admin_dorm_status.html" class="active">宿舍状态 Dorm Status</a></li>
+            <li><a href="admin_fee_status.html">缴费状态 Fee Status</a></li>
+            <li><a href="admin_maintenance.html">维修管理 Maintenance</a></li>
+            <li><a href="admin_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>宿舍状态监控<br>Dorm Status Monitoring</h2>
+
+        <div class="card">
+            <h3>筛选条件<br>Filter Conditions</h3>
+            <div class="filter-group">
+                <label for="buildingFilter">选择楼栋：<br>Select Building:</label>
+                <select id="buildingFilter">
+                    <option value="">全部楼栋<br>All Buildings</option>
+                </select>
+                <button class="btn btn-small" onclick="loadDormStatus()">筛选<br>Filter</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>宿舍状态列表<br>Dorm Status List</h3>
+            <div id="dormStatus" class="loading">加载中...<br>Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAdminLogin();
+        await loadBuildings();
+        await loadDormStatus();
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await adminAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function checkAdminLogin() {
+        try {
+            const result = await adminAPI.getCurrentUser();
+            if (result.code !== 1) {
+                utils.redirectTo('admin_login.html');
+            }
+        } catch (error) {
+            utils.redirectTo('admin_login.html');
+        }
+    }
+
+    async function loadBuildings() {
+        try {
+            const result = await adminAPI.getBuildings();
+
+            if (result.code === 1 && result.data) {
+                const select = document.getElementById('buildingFilter');
+                result.data.forEach(building => {
+                    const option = document.createElement('option');
+                    option.value = building.building_id;
+                    option.textContent = building.building_name;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('加载楼栋列表失败:', error);
+        }
+    }
+
+    async function loadDormStatus() {
+        try {
+            const buildingId = document.getElementById('buildingFilter').value;
+            const result = await adminAPI.getDormStatus(buildingId);
+
+            if (result.code === 1 && result.data) {
+                const dormStatus = result.data;
+
+                if (dormStatus.length === 0) {
+                    document.getElementById('dormStatus').innerHTML = '<p>暂无宿舍数据</p>';
+                    return;
+                }
+
+                let html = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>楼栋</th>
+                                    <th>房间号</th>
+                                    <th>当前入住人数</th>
+                                    <th>入住状态</th>
+                                    <th>入住学生</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                dormStatus.forEach(room => {
+                    const statusText = room.current_occupants === 0 ? '空置' :
+                        room.current_occupants === 4 ? '满员' : '未满';
+                    const statusClass = room.current_occupants === 0 ? 'status-empty' :
+                        room.current_occupants === 4 ? 'status-full' : 'status-partial';
+
+                    let studentsHtml = '';
+                    if (room.students && room.students.length > 0) {
+                        room.students.forEach(student => {
+                            studentsHtml += `${student.name} (${student.student_id})<br>`;
+                        });
+                    } else {
+                        studentsHtml = '无';
+                    }
+
+                    html += `
+                            <tr>
+                                <td>${room.building_name}</td>
+                                <td>${room.room_number}</td>
+                                <td>${room.current_occupants}/4</td>
+                                <td><span class="${statusClass}">${statusText}</span></td>
+                                <td>${studentsHtml}</td>
+                            </tr>
+                        `;
+                });
+
+                html += `</tbody></table>`;
+                document.getElementById('dormStatus').innerHTML = html;
+            } else {
+                document.getElementById('dormStatus').innerHTML = '<p>暂无宿舍数据</p>';
+            }
+        } catch (error) {
+            document.getElementById('dormStatus').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+</script>
+
+<style>
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filter-group label {
+        margin-bottom: 0;
+        font-weight: bold;
+    }
+
+    .filter-group select {
+        width: auto;
+    }
+
+    .btn-small {
+        padding: 8px 15px;
+        width: auto;
+    }
+
+    .status-empty { color: #6c757d; font-weight: bold; }
+    .status-partial { color: #ff9800; font-weight: bold; }
+    .status-full { color: #4caf50; font-weight: bold; }
+</style>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Info - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</div>
+        <ul class="nav-links">
+            <li><a href="student_dashboard.html">首页 Home</a></li>
+            <li><a href="student_dorm_info.html">宿舍信息 Dorm Info</a></li>
+            <li><a href="student_adjustment.html">调整申请 Adjustment</a></li>
+            <li><a href="student_fees.html">费用查询 Fees</a></li>
+            <li><a href="student_maintenance.html">维修服务 Maintenance</a></li>
+            <li><a href="student_profile.html" class="active">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>个人信息管理<br>Personal Information Management</h2>
+
+        <div class="card">
+            <h3>我的信息<br>My Information</h3>
+            <div id="userInfo" class="loading">加载中...<br>Loading...</div>
+        </div>
+
+        <div class="card">
+            <h3>修改信息<br>Update Information</h3>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label for="email">邮箱<br>Email</label>
+                    <input type="email" id="email" name="email">
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">手机号<br>Phone Number</label>
+                    <input type="tel" id="phone" name="phone">
+                </div>
+
+                <div class="form-group">
+                    <label for="password">新密码（如不需要修改请留空）<br>New Password (leave blank if no change)</label>
+                    <input type="password" id="password" name="password" placeholder="如不修改请留空<br>Leave blank if no change">
+                </div>
+
+                <button type="submit" class="btn">更新信息<br>Update Information</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await utils.checkLogin();
+        if (!user) {
+            utils.redirectTo('student_login.html');
+            return;
+        }
+
+        await loadUserInfo();
+
+        // 表单提交
+        document.getElementById('profileForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await updateProfile();
+        });
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await studentAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function loadUserInfo() {
+        try {
+            const result = await studentAPI.getCurrentUser();
+
+            if (result.code === 1 && result.data) {
+                const user = result.data;
+
+                // 显示用户信息
+                const userInfoHtml = `
+                        <table class="table">
+                            <tr>
+                                <td><strong>学号</strong></td>
+                                <td>${user.student_id}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>姓名</strong></td>
+                                <td>${user.name}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>性别</strong></td>
+                                <td>${user.gender === 'MALE' ? '男' : '女'}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>邮箱</strong></td>
+                                <td>${user.email || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>手机号</strong></td>
+                                <td>${user.phone || '-'}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>角色</strong></td>
+                                <td>${user.role === 'STUDENT' ? '学生' : '管理员'}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>注册时间</strong></td>
+                                <td>${utils.formatDate(user.created_at)}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>最后更新</strong></td>
+                                <td>${utils.formatDate(user.updated_at)}</td>
+                            </tr>
+                        </table>
+                    `;
+
+                document.getElementById('userInfo').innerHTML = userInfoHtml;
+
+                // 填充表单
+                document.getElementById('email').value = user.email || '';
+                document.getElementById('phone').value = user.phone || '';
+            } else {
+                document.getElementById('userInfo').innerHTML = '<div class="message error">获取用户信息失败</div>';
+            }
+        } catch (error) {
+            document.getElementById('userInfo').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+
+    async function updateProfile() {
+        const email = document.getElementById('email').value;
+        const phone = document.getElementById('phone').value;
+        const password = document.getElementById('password').value;
+
+        const updateData = {};
+        if (email) updateData.email = email;
+        if (phone) updateData.phone = phone;
+        if (password) updateData.password = password;
+
+        if (Object.keys(updateData).length === 0) {
+            utils.showMessage('请填写要修改的信息', 'error');
+            return;
+        }
+
+        try {
+            const result = await studentAPI.updateProfile(updateData);
+
+            if (result.code === 1) {
+                utils.showMessage('信息更新成功！');
+                document.getElementById('password').value = ''; // 清空密码字段
+                await loadUserInfo(); // 刷新用户信息
+            } else {
+                utils.showMessage(result.message, 'error');
+            }
+        } catch (error) {
+            utils.showMessage(error.message || '更新失败', 'error');
+        }
+    }
+</script>
+</body>
+</html>

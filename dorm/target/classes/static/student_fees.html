@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Inquiry - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</div>
+        <ul class="nav-links">
+            <li><a href="student_dashboard.html">首页 Home</a></li>
+            <li><a href="student_dorm_info.html">宿舍信息 Dorm Info</a></li>
+            <li><a href="student_adjustment.html">调整申请 Adjustment</a></li>
+            <li><a href="student_fees.html" class="active">费用查询 Fees</a></li>
+            <li><a href="student_maintenance.html">维修服务 Maintenance</a></li>
+            <li><a href="student_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>宿舍费用查询<br>Dormitory Fee Inquiry</h2>
+        <div id="feesInfo" class="loading">加载中...<br>Loading...</div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await utils.checkLogin();
+        if (!user) {
+            utils.redirectTo('student_login.html');
+            return;
+        }
+
+        await loadFeesInfo();
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await studentAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function loadFeesInfo() {
+        try {
+            const result = await studentAPI.getFees();
+
+            if (result.code === 1 && result.data) {
+                const fees = result.data;
+                const paidStatus = fees.paid ? '已缴费' : '未缴费';
+                const paidClass = fees.paid ? 'status-paid' : 'status-unpaid';
+
+                const html = `
+                        <div class="card">
+                            <h3>费用详情</h3>
+                            <table class="table">
+                                <tr>
+                                    <td><strong>学号</strong></td>
+                                    <td>${fees.student_id}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>学年</strong></td>
+                                    <td>${fees.academic_year}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>学期</strong></td>
+                                    <td>${fees.semester === 'SPRING' ? '春季' :
+                    fees.semester === 'SUMMER' ? '夏季' : '秋季'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>住宿费</strong></td>
+                                    <td>¥${fees.accommodation_fee.toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>电费</strong></td>
+                                    <td>¥${fees.electricity_fee.toFixed(2)}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>总金额</strong></td>
+                                    <td><strong>¥${fees.total_amount.toFixed(2)}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>缴费状态</strong></td>
+                                    <td><span class="${paidClass}">${paidStatus}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>缴费截止日期</strong></td>
+                                    <td>${fees.due_date}</td>
+                                </tr>
+                                ${fees.paid_date ? `
+                                <tr>
+                                    <td><strong>缴费日期</strong></td>
+                                    <td>${fees.paid_date}</td>
+                                </tr>
+                                ` : ''}
+                            </table>
+                        </div>
+                    `;
+
+                document.getElementById('feesInfo').innerHTML = html;
+            } else {
+                document.getElementById('feesInfo').innerHTML = '<div class="message error">获取费用信息失败</div>';
+            }
+        } catch (error) {
+            document.getElementById('feesInfo').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+</script>
+
+<style>
+    .status-paid { color: #4caf50; font-weight: bold; }
+    .status-unpaid { color: #f44336; font-weight: bold; }
+</style>
+</body>
+</html>

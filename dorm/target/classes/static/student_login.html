@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Login - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>学生登录<br>Student Login</h1>
+        <p>CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</p>
+    </div>
+
+    <div class="form-container">
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="studentId">学号 Student ID</label>
+                <input type="text" id="studentId" name="studentId" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码 Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn">登录 Sign In</button>
+        </form>
+
+        <!-- 错误消息显示区域 -->
+        <div id="messageContainer" style="margin-top: 15px;"></div>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <p>还没有账号？No account yet? <a href="student_register.html">立即注册 Register Now</a></p>
+            <p><a href="index.html">返回首页 Back to Home</a></p>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const studentId = document.getElementById('studentId').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const result = await studentAPI.login(studentId, password);
+
+            if (result.code === 1) {
+                utils.showMessage('登录成功！');
+                setTimeout(() => {
+                    utils.redirectTo('student_dashboard.html');
+                }, 1000);
+            } else {
+                showErrorMessage(result.message || '登录失败');
+            }
+        } catch (error) {
+            showErrorMessage(error.message || '登录失败');
+        }
+    });
+
+    // 显示错误消息的专用函数
+    function showErrorMessage(message) {
+        const messageContainer = document.getElementById('messageContainer');
+        messageContainer.innerHTML = `<div class="message error">${message}</div>`;
+        
+        // 3秒后自动清除消息
+        setTimeout(() => {
+            messageContainer.innerHTML = '';
+        }, 3000);
+    }
+</script>
+</body>
+</html>

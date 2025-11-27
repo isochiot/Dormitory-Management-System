@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>学生注册<br>Student Registration</h1>
+        <p>CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</p>
+    </div>
+
+    <div class="form-container">
+        <form id="registerForm">
+            <div class="form-group">
+                <label for="studentId">学号 Student ID</label>
+                <input type="text" id="studentId" name="studentId" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码 Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <div class="form-group">
+                <label for="name">姓名 Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="gender">性别 Gender</label>
+                <select id="gender" name="gender" required>
+                    <option value="">请选择 Please Select</option>
+                    <option value="MALE">男 Male</option>
+                    <option value="FEMALE">女 Female</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="email">邮箱 Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="phone">手机号 Phone Number</label>
+                <input type="tel" id="phone" name="phone" required>
+            </div>
+
+            <button type="submit" class="btn">注册 Register</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <p>已有账号？Already have an account? <a href="student_login.html">立即登录 Sign In Now</a></p>
+            <p><a href="index.html">返回首页 Back to Home</a></p>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = {
+            student_id: document.getElementById('studentId').value,
+            password: document.getElementById('password').value,
+            name: document.getElementById('name').value,
+            gender: document.getElementById('gender').value,
+            email: document.getElementById('email').value,
+            phone: document.getElementById('phone').value
+        };
+
+        try {
+            const result = await studentAPI.register(formData);
+
+            if (result.code === 1) {
+                utils.showMessage('注册成功！');
+                setTimeout(() => {
+                    utils.redirectTo('student_login.html');
+                }, 1500);
+            } else {
+                utils.showMessage(result.message, 'error');
+            }
+        } catch (error) {
+            utils.showMessage(error.message || '注册失败', 'error');
+        }
+    });
+</script>
+</body>
+</html>

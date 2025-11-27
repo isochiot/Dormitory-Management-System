@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>管理员登录<br>Admin Login</h1>
+        <p>CUHKSZ宿舍管理系统 - 管理后台<br>CUHKSZ Dormitory Management System - Admin Panel</p>
+    </div>
+
+    <div class="form-container">
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="studentId">管理员账号 Admin ID</label>
+                <input type="text" id="studentId" name="studentId" required placeholder="请输入管理员账号 Please enter admin ID">
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码 Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+
+            <button type="submit" class="btn">登录 Sign In</button>
+        </form>
+
+        <div style="text-align: center; margin-top: 20px;">
+            <p><a href="index.html">返回首页 Back to Home</a></p>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const studentId = document.getElementById('studentId').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            const result = await adminAPI.login(studentId, password);
+
+            if (result.code === 1) {
+                utils.showMessage('登录成功！');
+                setTimeout(() => {
+                    utils.redirectTo('admin_dashboard.html');
+                }, 1000);
+            } else {
+                utils.showMessage(result.message, 'error');
+            }
+        } catch (error) {
+            utils.showMessage(error.message || '登录失败', 'error');
+        }
+    });
+</script>
+</body>
+</html>

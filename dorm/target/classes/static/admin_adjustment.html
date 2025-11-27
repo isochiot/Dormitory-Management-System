@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Processing - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统 - 管理后台<br>CUHKSZ Dormitory Management System - Admin Panel</div>
+        <ul class="nav-links">
+            <li><a href="admin_dashboard.html">首页 Home</a></li>
+            <li><a href="admin_adjustment.html" class="active">申请处理 Applications</a></li>
+            <li><a href="admin_dorm_status.html">宿舍状态 Dorm Status</a></li>
+            <li><a href="admin_fee_status.html">缴费状态 Fee Status</a></li>
+            <li><a href="admin_maintenance.html">维修管理 Maintenance</a></li>
+            <li><a href="admin_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>宿舍调整申请处理<br>Dorm Adjustment Application Processing</h2>
+
+        <div class="card">
+            <h3>申请列表<br>Application List</h3>
+            <div id="adjustmentRequests" class="loading">加载中...<br>Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- 处理申请模态框 -->
+<div id="handleModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>处理申请</h3>
+        <form id="handleForm">
+            <input type="hidden" id="handleRequestId">
+
+            <div class="form-group">
+                <label for="status">处理结果</label>
+                <select id="status" name="status" required>
+                    <option value="">请选择</option>
+                    <option value="APPROVED">批准</option>
+                    <option value="REJECTED">拒绝</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="admin_notes">处理备注</label>
+                <textarea id="admin_notes" name="admin_notes" placeholder="请输入处理备注..." required></textarea>
+            </div>
+
+            <div class="form-group" id="roomAssignmentGroup" style="display: none;">
+                <label for="assigned_room_id">分配房间ID</label>
+                <input type="number" id="assigned_room_id" name="assigned_room_id" placeholder="请输入房间ID">
+            </div>
+
+            <button type="submit" class="btn">提交处理</button>
+        </form>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAdminLogin();
+        await loadAdjustmentRequests();
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await adminAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+
+        // 模态框事件
+        const modal = document.getElementById('handleModal');
+        const closeBtn = document.querySelector('.close');
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 状态选择变化
+        document.getElementById('status').addEventListener('change', function() {
+            const roomGroup = document.getElementById('roomAssignmentGroup');
+            roomGroup.style.display = this.value === 'APPROVED' ? 'block' : 'none';
+        });
+
+        // 处理表单提交
+        document.getElementById('handleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await handleAdjustmentRequest();
+        });
+    });
+
+    async function checkAdminLogin() {
+        try {
+            const result = await adminAPI.getCurrentUser();
+            if (result.code !== 1) {
+                utils.redirectTo('admin_login.html');
+            }
+        } catch (error) {
+            utils.redirectTo('admin_login.html');
+        }
+    }
+
+    async function loadAdjustmentRequests() {
+        try {
+            const result = await adminAPI.getAdjustmentRequests();
+
+            if (result.code === 1 && result.data) {
+                const requests = result.data;
+
+                if (requests.length === 0) {
+                    document.getElementById('adjustmentRequests').innerHTML = '<p>暂无调整申请</p>';
+                    return;
+                }
+
+                let html = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>申请ID</th>
+                                    <th>学生学号</th>
+                                    <th>申请原因</th>
+                                    <th>目标楼栋</th>
+                                    <th>状态</th>
+                                    <th>管理员备注</th>
+                                    <th>分配房间</th>
+                                    <th>提交时间</th>
+                                    <th>更新时间</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                requests.forEach(request => {
+                    const statusText = {
+                        'PENDING': '待处理',
+                        'APPROVED': '已批准',
+                        'REJECTED': '已拒绝'
+                    }[request.status] || request.status;
+
+                    const statusClass = `status-${request.status.toLowerCase()}`;
+
+                    html += `
+                            <tr>
+                                <td>${request.id}</td>
+                                <td><strong>${request.student_id}</strong></td>
+                                <td>${request.reason}</td>
+                                <td>${request.preferred_building_name}</td>
+                                <td><span class="${statusClass}">${statusText}</span></td>
+                                <td>${request.admin_notes || '-'}</td>
+                                <td>${request.assigned_room_number || '-'}</td>
+                                <td>${utils.formatDate(request.created_at)}</td>
+                                <td>${utils.formatDate(request.updated_at)}</td>
+                                <td>
+                                    ${request.status === 'PENDING' ?
+                        `<button class="btn btn-small" onclick="openHandleModal(${request.id})">处理</button>` :
+                        '-'
+                    }
+                                </td>
+                            </tr>
+                        `;
+                });
+
+                html += `</tbody></table>`;
+                document.getElementById('adjustmentRequests').innerHTML = html;
+            } else {
+                document.getElementById('adjustmentRequests').innerHTML = '<p>暂无调整申请</p>';
+            }
+        } catch (error) {
+            document.getElementById('adjustmentRequests').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+
+    function openHandleModal(requestId) {
+        document.getElementById('handleRequestId').value = requestId;
+        document.getElementById('handleForm').reset();
+        document.getElementById('roomAssignmentGroup').style.display = 'none';
+        document.getElementById('handleModal').style.display = 'block';
+    }
+
+    async function handleAdjustmentRequest() {
+        const requestId = document.getElementById('handleRequestId').value;
+        const status = document.getElementById('status').value;
+        const admin_notes = document.getElementById('admin_notes').value;
+        const assigned_room_id = document.getElementById('assigned_room_id').value;
+
+        const handleData = {
+            status: status,
+            admin_notes: admin_notes
+        };
+
+        if (status === 'APPROVED' && assigned_room_id) {
+            handleData.assigned_room_id = parseInt(assigned_room_id);
+        }
+
+        try {
+            const result = await adminAPI.handleAdjustment(requestId, handleData);
+
+            if (result.code === 1) {
+                utils.showMessage('处理成功！');
+                document.getElementById('handleModal').style.display = 'none';
+                await loadAdjustmentRequests(); // 刷新列表
+            } else {
+                utils.showMessage(result.message, 'error');
+            }
+        } catch (error) {
+            utils.showMessage(error.message || '处理失败', 'error');
+        }
+    }
+</script>
+
+<style>
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: white;
+        margin: 10% auto;
+        padding: 20px;
+        border-radius: 10px;
+        width: 500px;
+        max-width: 90%;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: black;
+    }
+
+    .btn-small {
+        padding: 5px 10px;
+        font-size: 0.9rem;
+        width: auto;
+    }
+
+    .status-pending { color: #ff9800; font-weight: bold; }
+    .status-approved { color: #4caf50; font-weight: bold; }
+    .status-rejected { color: #f44336; font-weight: bold; }
+</style>
+</body>
+</html>

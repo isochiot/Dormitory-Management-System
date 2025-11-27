@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorm Adjustment - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统<br>CUHKSZ Dormitory Management System</div>
+        <ul class="nav-links">
+            <li><a href="student_dashboard.html">首页 Home</a></li>
+            <li><a href="student_dorm_info.html">宿舍信息 Dorm Info</a></li>
+            <li><a href="student_adjustment.html" class="active">调整申请 Adjustment</a></li>
+            <li><a href="student_fees.html">费用查询 Fees</a></li>
+            <li><a href="student_maintenance.html">维修服务 Maintenance</a></li>
+            <li><a href="student_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>宿舍调整申请<br>Dorm Adjustment Application</h2>
+
+        <div class="card">
+            <h3>提交调整申请<br>Submit Adjustment Request</h3>
+            <form id="adjustmentForm">
+                <div class="form-group">
+                    <label for="preferredBuilding">希望调整到的楼栋<br>Preferred Building</label>
+                    <select id="preferredBuilding" name="preferredBuilding" required>
+                        <option value="">请选择楼栋<br>Please select a building</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="reason">调整原因<br>Reason for Adjustment</label>
+                    <textarea id="reason" name="reason" placeholder="请详细说明您希望调整宿舍的原因... Please explain in detail why you want to adjust your dorm..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn">提交申请<br>Submit Application</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>我的申请记录<br>My Application Records</h3>
+            <div id="myRequests" class="loading">加载中...<br>Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        const user = await utils.checkLogin();
+        if (!user) {
+            utils.redirectTo('student_login.html');
+            return;
+        }
+
+        await loadBuildings();
+        await loadMyRequests();
+
+        // 表单提交
+        document.getElementById('adjustmentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitAdjustmentRequest();
+        });
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await studentAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+    });
+
+    async function loadBuildings() {
+        try {
+            const result = await studentAPI.getBuildings();
+
+            if (result.code === 1 && result.data) {
+                const select = document.getElementById('preferredBuilding');
+                result.data.forEach(building => {
+                    const option = document.createElement('option');
+                    option.value = building;
+                    option.textContent = building;
+                    select.appendChild(option);
+                });
+            }
+        } catch (error) {
+            console.error('加载楼栋列表失败:', error);
+        }
+    }
+
+    async function submitAdjustmentRequest() {
+        const preferredBuilding = document.getElementById('preferredBuilding').value;
+        const reason = document.getElementById('reason').value;
+
+        if (!preferredBuilding || !reason) {
+            utils.showMessage('请填写完整信息', 'error');
+            return;
+        }
+
+        try {
+            const result = await studentAPI.submitAdjustmentRequest({
+                preferred_building_name: preferredBuilding,
+                reason: reason
+            });
+
+            if (result.code === 1) {
+                utils.showMessage('申请提交成功！');
+                document.getElementById('adjustmentForm').reset();
+                await loadMyRequests(); // 刷新申请列表
+            } else {
+                utils.showMessage(result.message, 'error');
+            }
+        } catch (error) {
+            utils.showMessage(error.message || '提交失败', 'error');
+        }
+    }
+
+    async function loadMyRequests() {
+        try {
+            const result = await studentAPI.getMyRequests();
+
+            if (result.code === 1 && result.data) {
+                const requests = result.data;
+
+                if (requests.length === 0) {
+                    document.getElementById('myRequests').innerHTML = '<p>暂无申请记录</p>';
+                    return;
+                }
+
+                let html = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>申请时间</th>
+                                    <th>目标楼栋</th>
+                                    <th>申请原因</th>
+                                    <th>状态</th>
+                                    <th>管理员备注</th>
+                                    <th>分配房间</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                requests.forEach(request => {
+                    html += `
+                            <tr>
+                                <td>${utils.formatDate(request.create_time)}</td>
+                                <td>${request.preferred_building_name}</td>
+                                <td>${request.reason}</td>
+                                <td>
+                                    <span class="status-${request.status.toLowerCase()}">
+                                        ${request.status === 'PENDING' ? '待处理' :
+                        request.status === 'APPROVED' ? '已批准' : '已拒绝'}
+                                    </span>
+                                </td>
+                                <td>${request.admin_notes || '-'}</td>
+                                <td>${request.assigned_room_number || '-'}</td>
+                            </tr>
+                        `;
+                });
+
+                html += `</tbody></table>`;
+                document.getElementById('myRequests').innerHTML = html;
+            } else {
+                document.getElementById('myRequests').innerHTML = '<p>暂无申请记录</p>';
+            }
+        } catch (error) {
+            document.getElementById('myRequests').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+</script>
+
+<style>
+    .status-pending { color: #ff9800; font-weight: bold; }
+    .status-approved { color: #4caf50; font-weight: bold; }
+    .status-rejected { color: #f44336; font-weight: bold; }
+</style>
+</body>
+</html>

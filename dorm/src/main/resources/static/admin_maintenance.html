@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance Management - CUHKSZ Dormitory Management System</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-logo">CUHKSZ宿舍管理系统 - 管理后台<br>CUHKSZ Dormitory Management System - Admin Panel</div>
+        <ul class="nav-links">
+            <li><a href="admin_dashboard.html">首页 Home</a></li>
+            <li><a href="admin_adjustment.html">申请处理 Applications</a></li>
+            <li><a href="admin_dorm_status.html">宿舍状态 Dorm Status</a></li>
+            <li><a href="admin_fee_status.html">缴费状态 Fee Status</a></li>
+            <li><a href="admin_maintenance.html" class="active">维修管理 Maintenance</a></li>
+            <li><a href="admin_profile.html">个人信息 Profile</a></li>
+            <li><a href="#" id="logoutBtn">退出登录 Logout</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="content">
+        <h2>维修请求管理<br>Maintenance Request Management</h2>
+
+        <div class="card">
+            <h3>筛选条件<br>Filter Conditions</h3>
+            <div class="filter-group">
+                <label for="statusFilter">状态筛选：<br>Status Filter:</label>
+                <select id="statusFilter" onchange="loadMaintenanceRequests()">
+                    <option value="">全部状态<br>All Status</option>
+                    <option value="SUBMITTED">已提交 Submitted</option>
+                    <option value="IN_PROGRESS">处理中 In Progress</option>
+                    <option value="COMPLETED">已完成 Completed</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>维修请求列表<br>Maintenance Request List</h3>
+            <div id="maintenanceRequests" class="loading">加载中...<br>Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- 更新维修状态模态框 -->
+<div id="updateModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>更新维修状态</h3>
+        <form id="updateForm">
+            <input type="hidden" id="updateRequestId">
+
+            <div class="form-group">
+                <label for="updateStatus">状态</label>
+                <select id="updateStatus" name="status" required>
+                    <option value="">请选择</option>
+                    <option value="IN_PROGRESS">处理中</option>
+                    <option value="COMPLETED">已完成</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="maintenance_notes">维修备注</label>
+                <textarea id="maintenance_notes" name="maintenance_notes" placeholder="请输入维修备注..." required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="estimated_completion">预计完成时间</label>
+                <input type="date" id="estimated_completion" name="estimated_completion">
+            </div>
+
+            <button type="submit" class="btn">更新状态</button>
+        </form>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAdminLogin();
+        await loadMaintenanceRequests();
+
+        // 退出登录
+        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                await adminAPI.logout();
+                utils.redirectTo('index.html');
+            } catch (error) {
+                console.error('退出登录失败:', error);
+            }
+        });
+
+        // 模态框事件
+        const modal = document.getElementById('updateModal');
+        const closeBtn = document.querySelector('.close');
+
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 更新表单提交
+        document.getElementById('updateForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await updateMaintenanceRequest();
+        });
+    });
+
+    async function checkAdminLogin() {
+        try {
+            const result = await adminAPI.getCurrentUser();
+            if (result.code !== 1) {
+                utils.redirectTo('admin_login.html');
+            }
+        } catch (error) {
+            utils.redirectTo('admin_login.html');
+        }
+    }
+
+    async function loadMaintenanceRequests() {
+        try {
+            const status = document.getElementById('statusFilter').value;
+            const result = await adminAPI.getMaintenanceRequests(status);
+
+            if (result.code === 1 && result.data) {
+                const requests = result.data;
+
+                if (requests.length === 0) {
+                    document.getElementById('maintenanceRequests').innerHTML = '<p>暂无维修请求</p>';
+                    return;
+                }
+
+                let html = `
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>学生信息</th>
+                                    <th>问题类型</th>
+                                    <th>问题描述</th>
+                                    <th>状态</th>
+                                    <th>提交时间</th>
+                                    <th>维修备注</th>
+                                    <th>预计完成</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+
+                requests.forEach(request => {
+                    const issueTypeText = {
+                        'PLUMBING': '水管/卫浴',
+                        'ELECTRICAL': '电路/电器',
+                        'FURNITURE': '家具',
+                        'OTHER': '其他'
+                    }[request.issue_type] || request.issue_type;
+
+                    const statusText = {
+                        'SUBMITTED': '已提交',
+                        'IN_PROGRESS': '处理中',
+                        'COMPLETED': '已完成'
+                    }[request.status] || request.status;
+
+                    const statusClass = `status-${request.status.toLowerCase()}`;
+
+                    html += `
+                            <tr>
+                                <td>${request.id}</td>
+                                <td>
+                                    <strong>${request.student_id}</strong><br>
+                                </td>
+                                <td>${issueTypeText}</td>
+                                <td>${request.description}</td>
+                                <td><span class="${statusClass}">${statusText}</span></td>
+                                <td>${utils.formatDate(request.submit_time || request.created_at)}</td>
+                                <td>${request.maintenance_notes || '-'}</td>
+                                <td>${request.estimated_completion || '-'}</td>
+                                <td>
+                                    ${request.status !== 'COMPLETED' ?
+                        `<button class="btn btn-small" onclick="openUpdateModal(${request.id})">更新</button>` :
+                        '-'
+                    }
+                                </td>
+                            </tr>
+                        `;
+                });
+
+                html += `</tbody></table>`;
+                document.getElementById('maintenanceRequests').innerHTML = html;
+            } else {
+                document.getElementById('maintenanceRequests').innerHTML = '<p>暂无维修请求</p>';
+            }
+        } catch (error) {
+            document.getElementById('maintenanceRequests').innerHTML = `<div class="message error">加载失败: ${error.message}</div>`;
+        }
+    }
+
+    function openUpdateModal(requestId) {
+        document.getElementById('updateRequestId').value = requestId;
+        document.getElementById('updateForm').reset();
+        document.getElementById('updateModal').style.display = 'block';
+    }
+
+    async function updateMaintenanceRequest() {
+        const requestId = document.getElementById('updateRequestId').value;
+        const status = document.getElementById('updateStatus').value;
+        const maintenance_notes = document.getElementById('maintenance_notes').value;
+        const estimated_completion = document.getElementById('estimated_completion').value;
+
+        const updateData = {
+            status: status,
+            maintenance_notes: maintenance_notes
+        };
+
+        if (estimated_completion) {
+            updateData.estimated_completion = estimated_completion;
+        }
+
+        try {
+            const result = await adminAPI.updateMaintenance(requestId, updateData);
+
+            if (result.code === 1) {
+                utils.showMessage('更新成功！');
+                document.getElementById('updateModal').style.display = 'none';
+                await loadMaintenanceRequests(); // 刷新列表
+            } else {
+                utils.showMessage(result.message, 'error');
+            }
+        } catch (error) {
+            utils.showMessage(error.message || '更新失败', 'error');
+        }
+    }
+</script>
+
+<style>
+    .modal {
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: white;
+        margin: 10% auto;
+        padding: 20px;
+        border-radius: 10px;
+        width: 500px;
+        max-width: 90%;
+    }
+
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .close:hover {
+        color: black;
+    }
+
+    .btn-small {
+        padding: 5px 10px;
+        font-size: 0.9rem;
+        width: auto;
+    }
+
+    .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .filter-group label {
+        margin-bottom: 0;
+        font-weight: bold;
+    }
+
+    .filter-group select {
+        width: auto;
+    }
+
+    .status-submitted { color: #ff9800; font-weight: bold; }
+    .status-in_progress { color: #2196f3; font-weight: bold; }
+    .status-completed { color: #4caf50; font-weight: bold; }
+</style>
+</body>
+</html>
